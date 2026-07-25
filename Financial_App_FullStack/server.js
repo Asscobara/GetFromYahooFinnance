@@ -1,10 +1,10 @@
-const express = require('express');
-const yahooFinance = require('yahoo-finance2').default;
-const archiver = require('archiver');
-const path = require('path');
+import express from 'express';
+import yahooFinance from 'yahoo-finance2';
+import archiver from 'archiver';
 
 const app = express();
-const PORT = 3000;
+// Render דורש האזנה לפורט משתנה
+const PORT = process.env.PORT || 3000; 
 
 // Enable JSON body parsing and serve static files from 'public' folder
 app.use(express.json());
@@ -85,7 +85,6 @@ app.post('/api/download', async (req, res) => {
 
 app.listen(PORT, () => {
     console.log(`=========================================`);
-    console.log(`Server is running!`);
-    console.log(`Open your browser to: http://localhost:${PORT}`);
+    console.log(`Server is running on port ${PORT}!`);
     console.log(`=========================================`);
 });
