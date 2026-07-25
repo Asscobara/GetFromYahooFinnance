@@ -3,6 +3,7 @@
   "version": "1.0.0",
   "description": "Full stack app for downloading Yahoo Finance data",
   "main": "server.js",
+  "type": "module",
   "scripts": {
     "start": "node server.js"
   },
