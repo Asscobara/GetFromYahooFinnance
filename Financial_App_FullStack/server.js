@@ -1,9 +1,11 @@
 import express from 'express';
-import yahooFinancePkg from 'yahoo-finance2';
 import archiver from 'archiver';
+import { createRequire } from 'module';
 
-// פתרון התאימות: חילוץ האובייקט שמכיל את הפונקציות בפועל
-const yahooFinance = yahooFinancePkg.default || yahooFinancePkg;
+// יצירת פונקציית require מותאמת לסביבת ה-ES Modules החדשה
+const require = createRequire(import.meta.url);
+// שימוש ב-require כדי לשלוף את האובייקט המדויק ללא שגיאות עטיפה
+const yahooFinance = require('yahoo-finance2').default;
 
 const app = express();
 // Render דורש האזנה לפורט משתנה
