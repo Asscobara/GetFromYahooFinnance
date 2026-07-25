@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>מערכת לאיסוף נתונים פיננסיים (Full-Stack)</title>
+    <style>
+        body { 
+            font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; 
+            max-width: 800px; 
+            margin: 2rem auto; 
+            padding: 0 1rem; 
+            background: #f3f4f6; 
+            color: #1f2937; 
+        }
+        .card { 
+            background: white; 
+            padding: 2.5rem; 
+            border-radius: 12px; 
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1); 
+        }
+        h2 { margin-top: 0; color: #111827; }
+        .form-group { margin-bottom: 1.5rem; }
+        label { display: block; margin-bottom: 0.5rem; font-weight: 600; font-size: 0.9rem; }
+        textarea, input[type="text"], input[type="date"] { 
+            width: 100%; 
+            padding: 0.75rem; 
+            border: 1px solid #d1d5db; 
+            border-radius: 6px; 
+            box-sizing: border-box; 
+            font-family: monospace;
+            font-size: 1rem;
+        }
+        textarea { resize: vertical; }
+        .date-row { display: flex; gap: 1rem; }
+        .date-row > div { flex: 1; }
+        button { 
+            background: #2563eb; 
+            color: white; 
+            border: none; 
+            padding: 1rem; 
+            border-radius: 6px; 
+            font-weight: bold; 
+            cursor: pointer; 
+            font-size: 1.1rem; 
+            width: 100%; 
+            transition: background 0.2s; 
+        }
+        button:hover { background: #1d4ed8; }
+        button:disabled { background: #9ca3af; cursor: not-allowed; }
+        #status { 
+            margin-top: 1.5rem; 
+            font-weight: bold; 
+            text-align: center; 
+            color: #4b5563; 
+            min-height: 1.5em;
+        }
+        .note {
+            font-size: 0.85rem;
+            color: #6b7280;
+            margin-top: 2rem;
+            border-top: 1px solid #e5e7eb;
+            padding-top: 1rem;
+        }
+        /* Loader Animation */
+        .loader {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #3498db;
+            border-radius: 50%;
+            width: 30px;
+            height: 30px;
+            animation: spin 1s linear infinite;
+            margin: 10px auto;
+            display: none;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="card">
+        <h2>משיכת נתונים פיננסיים משרת מקומי</h2>
+        
+        <div class="form-group">
+            <label>סימול המדד (Index Proxy):</label>
+            <input type="text" id="indexTicker" value="XLK">
+        </div>
+
+        <div class="form-group">
+            <label>רשימת מניות (מופרדות בפסיק):</label>
+            <textarea id="stockTickers" rows="4" dir="ltr">AAPL, MSFT, NVDA, GOOGL, META, AVGO, ORCL, ADBE, CRM, AMD, CSCO, INTC, QCOM, TXN, INTU, IBM, AMAT, NOW, UBER, PANW, MU, LRCX, ADI, KLAC, SNPS, CDNS, ANET, ROP, FTNT, TEL, PTC, NTAP, STX, WDC, HPQ, GLW, CDW, TRMB, FICO, TYL</textarea>
+        </div>
+
+        <div class="form-group date-row">
+            <div>
+                <label>תאריך התחלה:</label>
+                <input type="date" id="startDate" value="2021-01-01">
+            </div>
+            <div>
+                <label>תאריך סיום:</label>
+                <input type="date" id="endDate" value="2026-06-30">
+            </div>
+        </div>
+
+        <button id="downloadBtn" onclick="startDownload()">שדר לשרת והורד נתונים</button>
+        
+        <div id="loader" class="loader"></div>
+        <div id="status"></div>
+
+        <div class="note">
+            <strong>איך זה עובד עכשיו?</strong> בקשת ההורדה (כולל רשימת הסמלים והתאריכים) נשלחת כ-API ישירות לשרת ה-Node.js שהרמת. השרת מבצע את המשיכה מ-Yahoo Finance באופן מאובטח (ללא בעיות CORS), אורז את כל הקבצים ל-ZIP אחד ושולח אותו חזרה לדפדפן שלך.
+        </div>
+    </div>
+
+    <script>
+        async function startDownload() {
+            const btn = document.getElementById('downloadBtn');
+            const status = document.getElementById('status');
+            const loader = document.getElementById('loader');
+            
+            btn.disabled = true;
+            loader.style.display = 'block';
+            status.innerText = "השרת מושך ומעבד את הנתונים, אנא המתן (זה עשוי לקחת מספר דקות)...";
+            status.style.color = "#4b5563";
+            
+            try {
+                const index = document.getElementById('indexTicker').value.trim();
+                const stocks = document.getElementById('stockTickers').value.split(',');
+                const startDate = document.getElementById('startDate').value;
+                const endDate = document.getElementById('endDate').value;
+                
+                // שידור הבקשה ל-API שיצרנו בשרת (POST)
+                const response = await fetch('/api/download', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ 
+                        indexTicker: index, 
+                        stockTickers: stocks, 
+                        startDate: startDate, 
+                        endDate: endDate 
+                    })
+                });
+                
+                if (!response.ok) {
+                    throw new Error(`Server returned status ${response.status}`);
+                }
+                
+                // קבלת קובץ ה-ZIP ישירות מהשרת (Stream)
+                const blob = await response.blob();
+                const url = window.URL.createObjectURL(blob);
+                
+                // יצירת קישור זמני והפעלת ההורדה
+                const a = document.createElement("a");
+                a.href = url;
+                a.download = "Financial_Data_FullStack.zip";
+                document.body.appendChild(a);
+                a.click();
+                
+                setTimeout(() => {
+                    document.body.removeChild(a);
+                    window.URL.revokeObjectURL(url);
+                }, 100);
+                
+                status.innerText = "הורדה הושלמה בהצלחה!";
+                status.style.color = "#059669";
+                
+            } catch (error) {
+                console.error(error);
+                status.innerText = "אירעה שגיאה. בדוק את הטרמינל (Console) של שרת ה-Node.js.";
+                status.style.color = "#dc2626";
+            } finally {
+                btn.disabled = false;
+                loader.style.display = 'none';
+            }
+        }
+    </script>
+</body>
+</html>

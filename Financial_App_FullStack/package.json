@@ -1,0 +1,14 @@
+{
+  "name": "financial-data-fullstack",
+  "version": "1.0.0",
+  "description": "Full stack app for downloading Yahoo Finance data",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "archiver": "^7.0.1",
+    "express": "^4.19.2",
+    "yahoo-finance2": "^2.11.3"
+  }
+}
