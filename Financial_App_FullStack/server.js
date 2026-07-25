@@ -1,56 +1,19 @@
 import express from 'express';
 import archiver from 'archiver';
+import YahooFinancePkg from 'yahoo-finance2';
 
 const app = express();
 const PORT = process.env.PORT || 3000; 
 
+// השורות שפותרות את כל התעלומה: 
+// בגרסה 4 הספרייה הפכה למחלקה (Class) ולכן חייבים לאתחל אותה כדי לגשת למתודות!
+const YFClass = YahooFinancePkg.default || YahooFinancePkg;
+const yahooFinance = typeof YFClass === 'function' ? new YFClass() : YFClass;
+
 app.use(express.json());
 app.use(express.static('public'));
 
-// פונקציית סריקה רקורסיבית לחילוץ הפונקציה ממעמקי האובייקט של המודול
-function extractHistorical(obj, depth = 0) {
-    if (!obj || depth > 5) return null;
-    
-    // מצאנו את הפונקציה
-    if (typeof obj.historical === 'function') {
-        return obj.historical.bind(obj);
-    }
-    
-    // סריקה לעומק (חיפוש בתוך default או שכבות אחרות)
-    for (const key in obj) {
-        try {
-            const val = obj[key];
-            if (val && typeof val === 'object') {
-                const found = extractHistorical(val, depth + 1);
-                if (found) return found;
-            }
-        } catch (e) {
-            // התעלמות ממאפיינים שזורקים שגיאות בגישה (כמו getters חסומים)
-        }
-    }
-    return null;
-}
-
 app.post('/api/download', async (req, res) => {
-    let historicalFunc;
-    
-    try {
-        // טעינה דינמית של הספרייה
-        const yfModule = await import('yahoo-finance2');
-        
-        // הפעלת הסריקה העמוקה
-        historicalFunc = extractHistorical(yfModule);
-        
-        if (!historicalFunc) {
-            console.error("Deep search failed. Module keys:", Object.keys(yfModule));
-            // אם במקרה עדיין חסר, השגיאה בלוג תדפיס לנו בדיוק מה יש באובייקט
-            return res.status(500).send("Module loaded but 'historical' function is completely missing.");
-        }
-    } catch (err) {
-        console.error("Failed to dynamically import yahoo-finance2:", err);
-        return res.status(500).send("Internal Server Error: Library import failed");
-    }
-
     const { indexTicker, stockTickers, startDate, endDate } = req.body;
     const allTickers = [indexTicker, ...stockTickers].map(t => t.trim()).filter(Boolean);
 
@@ -83,8 +46,8 @@ app.post('/api/download', async (req, res) => {
                 interval: '1d'
             };
 
-            // שימוש בפונקציה שחולצה מהסריקה
-            const result = await historicalFunc(ticker, queryOptions);
+            // כעת הפונקציה זמינה ומוכנה לעבודה
+            const result = await yahooFinance.historical(ticker, queryOptions);
 
             if (result && result.length > 0) {
                 let csvContent = "Date,Open,High,Low,Close,Adj Close,Volume,Pct_Change\n";
@@ -109,7 +72,7 @@ app.post('/api/download', async (req, res) => {
             console.error(`Failed to fetch ${ticker}:`, error.message);
         }
 
-        // השהייה למניעת Rate Limiting
+        // השהייה למניעת חסימות 
         await new Promise(resolve => setTimeout(resolve, 400));
     }
 
