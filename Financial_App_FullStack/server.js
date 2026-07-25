@@ -1,36 +1,37 @@
 import express from 'express';
+// ייבוא מלא של כל מה שהספרייה חושפת
+import * as yahooFinancePkg from 'yahoo-finance2';
 import archiver from 'archiver';
-import { createRequire } from 'module';
-
-// יצירת פונקציית require מותאמת לסביבת ה-ES Modules החדשה
-const require = createRequire(import.meta.url);
-// שימוש ב-require כדי לשלוף את האובייקט המדויק ללא שגיאות עטיפה
-const yahooFinance = require('yahoo-finance2').default;
 
 const app = express();
-// Render דורש האזנה לפורט משתנה
 const PORT = process.env.PORT || 3000; 
 
-// Enable JSON body parsing and serve static files from 'public' folder
 app.use(express.json());
 app.use(express.static('public'));
 
+// סורק חכם ששולף את הפונקציה מתוך עץ האובייקטים, לא משנה איך המערכת של Render ארזה אותו
+const historicalFunc = 
+    (typeof yahooFinancePkg.historical === 'function' ? yahooFinancePkg.historical.bind(yahooFinancePkg) : null) ||
+    (yahooFinancePkg.default && typeof yahooFinancePkg.default.historical === 'function' ? yahooFinancePkg.default.historical.bind(yahooFinancePkg.default) : null) ||
+    (yahooFinancePkg.default?.default && typeof yahooFinancePkg.default.default.historical === 'function' ? yahooFinancePkg.default.default.historical.bind(yahooFinancePkg.default.default) : null);
+
 app.post('/api/download', async (req, res) => {
+    // וידוא שהפונקציה אכן נשלפה בהצלחה לפני הריצה
+    if (!historicalFunc) {
+        console.error("Critical Error: 'historical' function not found in module.");
+        return res.status(500).send("Internal Server Error: Library export mismatch");
+    }
+
     const { indexTicker, stockTickers, startDate, endDate } = req.body;
-    
-    // Combine index and stocks into one array, filter empty strings
     const allTickers = [indexTicker, ...stockTickers].map(t => t.trim()).filter(Boolean);
 
-    // Set headers to trigger a file download in the browser
     res.setHeader('Content-Type', 'application/zip');
     res.setHeader('Content-Disposition', 'attachment; filename=Financial_Data.zip');
 
-    // Create a zip archive and stream it directly to the response
     const archive = archiver('zip', {
-        zlib: { level: 9 } // Maximum compression
+        zlib: { level: 9 }
     });
     
-    // Catch warnings and errors
     archive.on('warning', function(err) {
         if (err.code !== 'ENOENT') throw err;
     });
@@ -53,7 +54,8 @@ app.post('/api/download', async (req, res) => {
                 interval: '1d'
             };
 
-            const result = await yahooFinance.historical(ticker, queryOptions);
+            // שימוש בפונקציה שחילצנו
+            const result = await historicalFunc(ticker, queryOptions);
 
             if (result && result.length > 0) {
                 let csvContent = "Date,Open,High,Low,Close,Adj Close,Volume,Pct_Change\n";
@@ -72,18 +74,15 @@ app.post('/api/download', async (req, res) => {
                     prevAdjClose = adjClose;
                 }
 
-                // Append the generated CSV string as a file to the zip archive
                 archive.append(csvContent, { name: `${ticker}.csv` });
             }
         } catch (error) {
             console.error(`Failed to fetch ${ticker}:`, error.message);
         }
 
-        // Delay between requests to respect API rate limits
         await new Promise(resolve => setTimeout(resolve, 400));
     }
 
-    // Finalize the archive (this will finish the stream and close the connection)
     await archive.finalize();
     console.log("Archive finalized and sent to client.");
 });
