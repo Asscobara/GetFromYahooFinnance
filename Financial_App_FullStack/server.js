@@ -1,6 +1,9 @@
 import express from 'express';
-import yahooFinance from 'yahoo-finance2';
+import yahooFinancePkg from 'yahoo-finance2';
 import archiver from 'archiver';
+
+// פתרון התאימות: חילוץ האובייקט שמכיל את הפונקציות בפועל
+const yahooFinance = yahooFinancePkg.default || yahooFinancePkg;
 
 const app = express();
 // Render דורש האזנה לפורט משתנה
