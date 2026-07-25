@@ -1,0 +1,12 @@
+{
+  "name": "financial-data-node",
+  "version": "1.0.0",
+  "description": "Script to download financial data",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js"
+  },
+  "dependencies": {
+    "yahoo-finance2": "^2.11.3"
+  }
+}
